@@ -43,7 +43,11 @@ app.post("/process", async (req, res) => {
       result: response.choices[0].message.content,
     });
   } catch (error) {
-    res.status(500).json({ error: "Error en IA" });
+  console.error("ERROR REAL:", error);
+  res.status(500).json({
+    error: "Error con OpenAI",
+    detalle: error.message
+  });
   }
 });
 
