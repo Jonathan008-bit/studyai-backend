@@ -1,56 +1,51 @@
 import express from "express";
 import cors from "cors";
 import OpenAI from "openai";
+import multer from "multer";
+import pdf from "pdf-parse/lib/pdf-parse.js";
 
 const app = express();
+const upload = multer(); // Guarda archivos temporalmente en memoria
+
 app.use(cors());
 app.use(express.json());
 
 const openai = new OpenAI({
-  apiKey: "18/03/2026",
+  apiKey: process.env.OPENAI_API_KEY, // Esto lo configuraremos en Render después
 });
 
-// prueba
-app.get("/", (req, res) => {
-  res.send("Backend funcionando 🚀");
-});
-
-// IA
-app.post("/process", async (req, res) => {
-  const { text, mode } = req.body;
-
-  let prompt = "";
-
-  if (mode === "summary") {
-    prompt = `Resume este texto:\n${text}`;
-  }
-
-  if (mode === "learn") {
-    prompt = `Explícame este contenido paso a paso:\n${text}`;
-  }
-
-  if (mode === "quiz") {
-    prompt = `Crea 5 preguntas tipo test con 4 alternativas y marca la correcta:\n${text}`;
-  }
-
+app.post("/process", upload.array("files"), async (req, res) => {
   try {
+    let combinedText = "";
+    const mode = req.body.mode;
+
+    // Procesar cada archivo subido
+    if (req.files) {
+      for (const file of req.files) {
+        if (file.mimetype === "application/pdf") {
+          const data = await pdf(file.buffer);
+          combinedText += data.text + "\n";
+        } else {
+          combinedText += file.buffer.toString("utf-8") + "\n";
+        }
+      }
+    }
+
+    let prompt = "";
+    if (mode === "summary") prompt = `Resume de forma estructurada:\n${combinedText}`;
+    if (mode === "learn") prompt = `Explica esto con analogías sencillas:\n${combinedText}`;
+    if (mode === "quiz") prompt = `Crea un test de 5 preguntas con respuestas:\n${combinedText}`;
+
     const response = await openai.chat.completions.create({
-      model: "gpt-4.1",
+      model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
     });
 
-    res.json({
-      result: response.choices[0].message.content,
-    });
+    res.json({ result: response.choices[0].message.content });
   } catch (error) {
-  console.error("ERROR REAL:", error);
-  res.status(500).json({
-    error: "Error con OpenAI",
-    detalle: error.message
-  });
+    res.status(500).json({ error: error.message });
   }
 });
 
-app.listen(3000, () => {
-  console.log("Servidor activo");
-});
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Servidor en puerto ${PORT}`));
