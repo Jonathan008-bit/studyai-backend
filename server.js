@@ -14,6 +14,10 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY, // Esto lo configuraremos en Render después
 });
 
+app.get("/", (req, res) => {
+  res.send("Servidor de StudyAI activo y listo 🚀");
+});
+
 app.post("/process", upload.array("files"), async (req, res) => {
   try {
     let combinedText = "";
